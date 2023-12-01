@@ -1,0 +1,262 @@
+import pandas as pd
+import plotly.graph_objects as go
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+
+# Load the data into a pandas DataFrame (replace 'bowling_data.csv' with your data file)
+data = pd.read_csv(r"C:\Users\pja06\Downloads\bowling_averages_202309081302.csv")
+
+# Data Preprocessing (e.g., handling missing values, converting columns)
+# Convert 'season' column to integers
+data['season'] = data['season'].str.extract('(\d+)').astype(int)
+
+# Filter the dataset for seasons from 2016 onwards
+filtered_data = data[data['season'] >= 2016]
+
+# Split the dataset to include only bowlers with more than 10 wickets and a lower bowling average
+filtered_data = filtered_data[(filtered_data['wickets'] > 15) & (filtered_data['bowling_average'] < 25)]
+
+# Split data into features (X) and target (y)
+X = filtered_data[['total_runs', 'wickets', 'bowling_average']]
+y = filtered_data['bowling_average']
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train a Random Forest Regressor model
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Make predictions on the testing data
+y_pred = model.predict(X_test)
+
+# Evaluate the model (calculate RMSE)
+rmse = mean_squared_error(y_test, y_pred, squared=False)
+print("Root Mean Squared Error (RMSE):", rmse)
+
+# Rank bowlers based on predicted bowling averages
+filtered_data['predicted_bowling_average'] = model.predict(X)
+ranked_data = filtered_data.sort_values(by='predicted_bowling_average')
+
+# Create a scatter plot to visualize the actual vs. predicted bowling averages for all bowlers
+fig = go.Figure()
+
+# Define color and marker based on specified ranges
+def get_color_marker(bowling_average):
+    if bowling_average >= 20:
+        return 'darkred', 'triangle-up'
+    elif 16 <= bowling_average < 20:
+        return 'darkblue', 'circle'
+    else:
+        return 'green', 'square'
+
+# Apply the color and marker based on bowling average
+filtered_data['color'], filtered_data['marker'] = zip(*filtered_data['bowling_average'].apply(get_color_marker))
+
+# Add data points to the plot with reversed axes and bowler labels for averages below 16
+for color in ['darkblue', 'green', 'darkred']:
+    subset = filtered_data[filtered_data['color'] == color]
+    
+    for index, row in subset.iterrows():
+        if color == 'green':
+            # Alternate text positions for green data points
+            if index % 4 == 0:
+                text_position = 'top right'
+            elif index % 4 == 1:
+                text_position = 'top left'
+            elif index % 4 == 2:
+                text_position = 'bottom left'
+            else:
+                text_position = 'bottom right'
+        else:
+            text_position = 'top left' if color == 'green' else 'bottom right'
+        
+        if row['bowling_average'] < 16:
+            fig.add_trace(go.Scatter(
+                x=[row['bowling_average']],
+                y=[row['predicted_bowling_average']],
+                text=[row['bowler']],  # Include bowler's name as text label
+                mode='markers+text',  # Display text on the graph
+                marker=dict(size=10, color=row['color'], symbol=row['marker']),
+                showlegend=False,
+                textposition=text_position,
+                textfont=dict(size=10),
+            ))
+        else:
+            fig.add_trace(go.Scatter(
+                x=[row['bowling_average']],
+                y=[row['predicted_bowling_average']],
+                mode='markers',
+                marker=dict(size=10, color=row['color'], symbol=row['marker']),
+                showlegend=False
+            ))
+
+# Customize the reversed X-axis and Y-axis labels
+fig.update_xaxes(title_text='Predicted Bowling Average', autorange='reversed')
+fig.update_yaxes(title_text='Actual Bowling Average', autorange='reversed')
+
+# Add a title to the plot
+fig.update_layout(title='Actual vs. Predicted Bowling Averages (All Bowlers - Random Forest)')
+
+# Create a single legend for "Bowling Average Threshold" with corresponding measures and colors
+legend_colors = {
+    'darkblue': '16-20',
+    'green': '<16',
+    'darkred': '>=20',
+}
+
+for color, measure in legend_colors.items():
+    fig.add_trace(go.Scatter(
+        x=[None],
+        y=[None],
+        mode='markers',
+        marker=dict(size=10, color=color, symbol='square'),
+        showlegend=True,
+        name=f'Bowling Avg: {measure}',
+    ))
+
+# Show the plot
+fig.show()
+
+# Capture the data used to create the scatter plot
+scatter_data = []
+
+for color in ['darkblue', 'green', 'darkred']:
+    subset = filtered_data[filtered_data['color'] == color]
+    
+    for index, row in subset.iterrows():
+        data_point = {
+            'Bowler': row['bowler'],
+            'Bowling Average': row['bowling_average'],
+            'Predicted Bowling Average': row['predicted_bowling_average']
+        }
+        scatter_data.append(data_point)
+
+# Create a DataFrame from the captured data
+scatter_df = pd.DataFrame(scatter_data)
+
+# Define the path where you want to save the CSV file
+csv_path = r'C:\Users\pja06\Downloads\scatter_data.csv'
+
+# Save the DataFrame to a CSV file
+scatter_df.to_csv(csv_path, index=False)
+
+# Print a message to confirm that the data has been exported
+print(f"Scatter data has been exported to {csv_path}")
+
+# Load the data into a pandas DataFrame (replace 'bowling_data.csv' with your data file)
+data = pd.read_csv(r"C:\Users\pja06\Downloads\bowling_averages_202309081302.csv")
+
+# Data Preprocessing (e.g., handling missing values, converting columns)
+# Convert 'season' column to integers
+data['season'] = data['season'].str.extract('(\d+)').astype(int)
+
+# Filter the dataset for seasons from 2016 onwards
+filtered_data = data[data['season'] >= 2016]
+
+# Split the dataset to include only bowlers with more than 10 wickets and a lower bowling average
+filtered_data = filtered_data[(filtered_data['wickets'] > 15) & (filtered_data['bowling_average'] < 25)]
+
+# Split data into features (X) and target (y)
+X = filtered_data[['total_runs', 'wickets', 'bowling_average']]
+y = filtered_data['bowling_average']
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train a Support Vector Regression (SVR) model
+model = SVR(kernel='linear')
+model.fit(X_train, y_train)
+
+# Make predictions on the testing data
+y_pred = model.predict(X_test)
+
+# Evaluate the model (calculate RMSE)
+rmse = mean_squared_error(y_test, y_pred, squared=False)
+print("Root Mean Squared Error (RMSE):", rmse)
+
+# Rank bowlers based on predicted bowling averages using SVR
+filtered_data['predicted_bowling_average'] = model.predict(X)
+ranked_data = filtered_data.sort_values(by='predicted_bowling_average')
+
+# Create a scatter plot to visualize the actual vs. predicted bowling averages for all bowlers
+fig = go.Figure()
+
+# Define color and marker based on specified ranges
+def get_color_marker(bowling_average):
+    if bowling_average >= 20:
+        return 'darkred', 'triangle-up'
+    elif 16 <= bowling_average < 20:
+        return 'darkblue', 'circle'
+    else:
+        return 'green', 'square'
+
+# Apply the color and marker based on bowling average
+filtered_data['color'], filtered_data['marker'] = zip(*filtered_data['bowling_average'].apply(get_color_marker))
+
+# Add data points to the plot with reversed axes and bowler labels for averages below 16
+for color in ['darkblue', 'green', 'darkred']:
+    subset = filtered_data[filtered_data['color'] == color]
+    
+    for index, row in subset.iterrows():
+        if color == 'green':
+            # Alternate text positions for green data points
+            if index % 4 == 0:
+                text_position = 'top right'
+            elif index % 4 == 1:
+                text_position = 'top left'
+            elif index % 4 == 2:
+                text_position = 'bottom left'
+            else:
+                text_position = 'bottom right'
+        else:
+            text_position = 'top left' if color == 'green' else 'bottom right'
+        
+        if row['bowling_average'] < 16:
+            fig.add_trace(go.Scatter(
+                x=[row['bowling_average']],
+                y=[row['predicted_bowling_average']],
+                text=[row['bowler']],  # Include bowler's name as text label
+                mode='markers+text',  # Display text on the graph
+                marker=dict(size=10, color=row['color'], symbol=row['marker']),
+                showlegend=False,
+                textposition=text_position,
+                textfont=dict(size=10),
+            ))
+        else:
+            fig.add_trace(go.Scatter(
+                x=[row['bowling_average']],
+                y=[row['predicted_bowling_average']],
+                mode='markers',
+                marker=dict(size=10, color=row['color'], symbol=row['marker']),
+                showlegend=False
+            ))
+
+# Customize the reversed X-axis and Y-axis labels
+fig.update_xaxes(title_text='Predicted Bowling Average', autorange='reversed')
+fig.update_yaxes(title_text='Actual Bowling Average', autorange='reversed')
+
+# Add a title to the plot
+fig.update_layout(title='Actual vs. Predicted Bowling Averages (All Bowlers - SVR)')
+
+# Create a single legend for "Bowling Average Threshold" with corresponding measures and colors for SVR
+legend_colors_svr = {
+    'darkblue': '16-20',
+    'green': '<16',
+    'darkred': '>=20',
+}
+
+for color, measure in legend_colors_svr.items():
+    fig.add_trace(go.Scatter(
+        x=[None],
+        y=[None],
+        mode='markers',
+        marker=dict(size=10, color=color, symbol='square'),
+        showlegend=True,
+        name=f'Bowling Avg: {measure}',
+    ))
+
+# Show the plot
+fig.show()
+
