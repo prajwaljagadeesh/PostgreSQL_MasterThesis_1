@@ -1,0 +1,117 @@
+import pandas as pd
+import plotly.graph_objects as go
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.svm import SVR
+from sklearn.metrics import mean_squared_error
+
+# Load the data into a pandas DataFrame (replace 'data.csv' with your data file)
+data = pd.read_csv(r"C:\Users\pja06\Downloads\batting_average_by_season_202309071622.csv")
+
+# Data Preprocessing (e.g., handling missing values, converting columns)
+
+# Calculate average runs per inning
+data['average_runs_per_inning'] = data['total_runs'] / data['total_innings']
+
+# Convert 'season' column to integers
+data['season'] = data['season'].str.extract('(\d+)').astype(int)
+
+# Filter the dataset for the year 2016 and onwards
+filtered_data = data[data['season'] >= 2016]
+
+# Filter the dataset to include only players with more than 10 innings and batting average > 30
+filtered_data = filtered_data[(filtered_data['total_innings'] > 10) & (filtered_data['batting_average'] > 30)]
+
+# Split data into features (X) and target (y)
+X = filtered_data[['total_innings', 'total_runs', 'average_runs_per_inning']]
+y = filtered_data['batting_average']
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train a Random Forest regression model
+model = RandomForestRegressor(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Make predictions on the testing data
+y_pred = model.predict(X_test)
+
+# Evaluate the model (calculate RMSE)
+rmse = mean_squared_error(y_test, y_pred, squared=False)
+print("Root Mean Squared Error (RMSE):", rmse)
+
+# Rank players based on predicted batting averages
+filtered_data['predicted_batting_average'] = model.predict(X)
+ranked_data = filtered_data.sort_values(by='predicted_batting_average', ascending=False)
+
+# Create a new column for labels, set to None for all data points
+filtered_data['labels'] = None
+
+# Assign labels to the top 10 batters
+top_10_batters = ranked_data.head(10)
+filtered_data.loc[top_10_batters.index, 'labels'] = top_10_batters['batsman']
+
+# Define a condition for color and text position assignment
+def color_and_text_position_condition(row):
+    batting_average = row['predicted_batting_average']
+    if batting_average < 40:
+        color = 'darkred'  # Dark red for batting average below 40
+        marker_symbol = 'triangle-up'
+        text_position = 'bottom right'  # Text position for dark red
+    elif 40 <= batting_average < 50:
+        color = 'blue'  # Blue for batting average between 40 and 50
+        marker_symbol = 'circle'
+        text_position = 'bottom right'  # Text position for blue
+    else:
+        color = 'green'  # Green for batting average 50 and above
+        marker_symbol = 'square'
+        text_position = 'top left'  # Text position for green
+    return color, marker_symbol, text_position
+
+# Apply the condition to create new columns for color, marker symbol, and text position
+filtered_data['color'], filtered_data['marker_symbol'], filtered_data['text_position'] = zip(*filtered_data.apply(color_and_text_position_condition, axis=1))
+
+# Create a mapping of color to legend label
+color_legend_mapping = {
+    'darkred': 'Below 40',
+    'blue': 'Between 40 and 50',
+    'green': '50 and Above'
+}
+
+# Create a figure
+fig = go.Figure()
+
+# Add traces for each color threshold and display data labels
+for color in color_legend_mapping:
+    color_data = filtered_data[filtered_data['color'] == color]
+    fig.add_trace(go.Scatter(
+        x=color_data['predicted_batting_average'],
+        y=color_data['batting_average'],
+        mode='markers+text',  # Include text labels
+        marker=dict(
+            size=10,
+            opacity=0.7,
+            symbol=color_data['marker_symbol'],
+            line=dict(width=2),
+            color=color
+        ),
+        text=color_data['labels'],  # Display data labels
+        textposition=color_data['text_position'],
+        name=color_legend_mapping[color]  # Use the legend label
+    ))
+
+# Add legends for different categories of batting averages
+fig.add_trace(go.Scatter(x=[], y=[], mode='markers', name='Below 40', marker=dict(size=10, opacity=0.7, symbol='triangle-up', line=dict(width=2), color='darkred')))
+fig.add_trace(go.Scatter(x=[], y=[], mode='markers', name='Between 40 and 50', marker=dict(size=10, opacity=0.7, symbol='circle', line=dict(width=2), color='blue')))
+fig.add_trace(go.Scatter(x=[], y=[], mode='markers', name='50 and Above', marker=dict(size=10, opacity=0.7, symbol='square', line=dict(width=2), color='green')))
+
+# Update layout options
+fig.update_layout(
+    title='Most valuable Batters (Random Forest)',
+    xaxis_title='Predicted Batting Average',
+    yaxis_title='Batting Average',
+    legend=dict(title='Batting Average Thresholds')
+)
+
+# Show the plot
+fig.show()
