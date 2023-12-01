@@ -1,21 +1,51 @@
 # PostgreSQL_MasterThesis_1
 End to end Player and team performance analysis Sql queries in postgres
 
+CREATE TABLE cricket_matches_3 (
+    ID serial PRIMARY KEY,
+    City varchar(100),
+    Date date,
+    Season varchar(20),
+    MatchNumber varchar(20), -- Using varchar for mixed-format match numbers
+    Team1 varchar(100),
+    Team2 varchar(100),
+    Venue varchar(200),
+    TossWinner varchar(100),
+    TossDecision varchar(20),
+    SuperOver boolean,
+    WinningTeam varchar(100),
+    WonBy varchar(20),
+    Margin varchar(50),
+    Method varchar(50),
+    Player_of_Match varchar(100),
+    Team1Players text[], -- Using an array for player names, adjust as needed
+    Team2Players text[], -- Using an array for player names, adjust as needed
+    Umpire1 varchar(100),
+    Umpire2 varchar(100)
+);
+CREATE TABLE cricket_stats (
+    ID INTEGER,
+    innings INTEGER,
+    overs NUMERIC,
+    ballnumber INTEGER,
+    batter VARCHAR(100),
+    bowler VARCHAR(100),
+    "non-striker" VARCHAR(100),
+    extra_type VARCHAR(100),
+    batsman_run INTEGER,
+    extras_run INTEGER,
+    total_run INTEGER,
+    non_boundary BOOLEAN,
+    isWicketDelivery BOOLEAN,
+    player_out VARCHAR(100),
+    kind VARCHAR(100),
+    fielders_involved VARCHAR(100),
+    BattingTeam VARCHAR(100)
+);
 
-Create materialized view bowling_averages as
-SELECT cricket_scores.bowler,
-       matches.season,
-       SUM(cricket_scores.total_run - cricket_scores.extras_run) AS total_runs,
-       COUNT(CASE WHEN cricket_scores.is_wicket_delivery THEN 1 END) AS wickets,
-	   CASE WHEN COUNT(CASE WHEN cricket_scores.is_wicket_delivery THEN 1 END) > 5
-	   THEN ROUND(SUM(cricket_scores.total_run - cricket_scores.extras_run) / COUNT(CASE WHEN cricket_scores.is_wicket_delivery THEN 1 END), 2)
-	   ELSE 0 END AS bowling_average
-FROM cricket_scores
-INNER JOIN matches ON cricket_scores.id = matches.id
-GROUP BY cricket_scores.bowler, matches.season
-HAVING COUNT(DISTINCT matches.id) >= 10 and
-    COUNT(cricket_scores.is_wicket_delivery) > 10
-order by bowling_average;
+
+
+
 
 CREATE MATERIALIZED VIEW batting_average_by_season AS
 SELECT 
